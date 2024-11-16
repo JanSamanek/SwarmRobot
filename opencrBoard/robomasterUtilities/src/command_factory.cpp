@@ -2,25 +2,25 @@
 #include "checksum.h"
 
 
-static void updateMoveCommand(Command&  command, const MovementInstruction& movementInstruction)
+static void updateMoveCommand(Command&  command, const Instruction& instruction)
 {
-    command.data[11] = movementInstruction.speedY & 0xFF;
-    command.data[12] = ((movementInstruction.speedX << 3) | (movementInstruction.speedY >> 8)) & 0x07;
-    command.data[13] = (movementInstruction.speedX >> 5) & 0x3F;
+    command.data[11] = instruction.speedY & 0xFF;
+    command.data[12] = ((instruction.speedX << 3) | (instruction.speedY >> 8)) & 0x07;
+    command.data[13] = (instruction.speedX >> 5) & 0x3F;
 
-    command.data[16] = (movementInstruction.rotation << 4) | 0x08;
-    command.data[17] = (movementInstruction.rotation >> 4) & 0xFF;
+    command.data[16] = (instruction.rotation << 4) | 0x08;
+    command.data[17] = (instruction.rotation >> 4) & 0xFF;
 
-    command.data[19] = 0x02 | ((movementInstruction.rotation << 2) & 0xFF);
-    command.data[20] = (movementInstruction.rotation >> 6) & 0xFF;
+    command.data[19] = 0x02 | ((instruction.rotation << 2) & 0xFF);
+    command.data[20] = (instruction.rotation >> 6) & 0xFF;
 }
 
-static void updateGimballCommand(Command&  command, const MovementInstruction& movementInstruction)
+static void updateGimballCommand(Command&  command, const Instruction& instruction)
 {
-    command.data[13] = movementInstruction.gimballRoll & 0xFF;
-    command.data[14] = (movementInstruction.gimballRoll >> 8) & 0xFF;
-    command.data[15] = movementInstruction.gimballYaw & 0xFF;
-    command.data[16] = (movementInstruction.gimballYaw >> 8) & 0xFF;
+    command.data[13] = instruction.gimballRoll & 0xFF;
+    command.data[14] = (instruction.gimballRoll >> 8) & 0xFF;
+    command.data[15] = instruction.gimballYaw & 0xFF;
+    command.data[16] = (instruction.gimballYaw >> 8) & 0xFF;
 }
 
 static void updateCommandCounter(Command&  command, int command_counter)
@@ -35,16 +35,16 @@ static void updateCrc(Command& command, uint32_t command_length)
     appendCRC16CheckSum(command.data, command_length);
 }
 
-static void preprocessCommand(Command& command, const MovementInstruction& movementInstruction, int command_counter)
+static void preprocessCommand(Command& command, const Instruction& instruction, int command_counter)
 {
      if(command.type == GIMBALL_COMMAND)
      {
-        updateGimballCommand(command, movementInstruction);
+        updateGimballCommand(command, instruction);
      }
             
      if(command.type == MOVE_COMMAND)
      {
-        updateMoveCommand(command, movementInstruction);
+        updateMoveCommand(command, instruction);
      }
 
     updateCommandCounter(command, command_counter);
@@ -235,7 +235,7 @@ CommandFactory::~CommandFactory()
     delete[] initCommand5.data;
 }
 
-Command CommandFactory::buildCommand(CommandType type, const MovementInstruction& movementInstruction) const
+Command CommandFactory::buildCommand(CommandType type, const Instruction& instruction) const
 {
     Command resultCommand;
 
@@ -306,6 +306,6 @@ Command CommandFactory::buildCommand(CommandType type, const MovementInstruction
     }
 
 
-    preprocessCommand(resultCommand, movementInstruction, commandCounter++);
+    preprocessCommand(resultCommand, instruction, commandCounter++);
     return resultCommand;
 }

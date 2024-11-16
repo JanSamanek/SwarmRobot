@@ -9,7 +9,7 @@ typedef struct {
     uint16_t rotation;
     int16_t gimballYaw;
     int16_t gimballRoll;
-} MovementInstruction;
+} Instruction;
 
 #endif // INSTRUCTION_H
 

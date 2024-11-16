@@ -32,7 +32,7 @@ private:
 public:
     CommandFactory();
     ~CommandFactory();
-    Command buildCommand(CommandType type, const MovementInstruction& movementData) const;
+    Command buildCommand(CommandType type, const Instruction& instructions) const;
 };
 
 #endif // COMMAND_FACTORY_H
