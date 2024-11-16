@@ -8,17 +8,17 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
-add_executable(movement_data_node src/movement_data_node.cpp)
-ament_target_dependencies(movement_data_node rclcpp std_msgs)
+add_executable(instructions_node src/instructions_node.cpp)
+ament_target_dependencies(instructions_node  rclcpp geometry_msgs)
 
-target_include_directories(movement_data_node PUBLIC
+target_include_directories(instructions_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_compile_features(movement_data_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(instructions_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
-install(TARGETS movement_data_node
+install(TARGETS instructions_node
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
