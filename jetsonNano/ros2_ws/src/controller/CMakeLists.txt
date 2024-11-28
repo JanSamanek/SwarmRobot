@@ -9,17 +9,27 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(robot_state_publisher REQUIRED)
 
-add_executable(instructions_node src/instructions_node.cpp)
-ament_target_dependencies(instructions_node  rclcpp geometry_msgs)
+add_executable(controller_node src/controller_node.cpp)
+ament_target_dependencies(controller_node  rclcpp geometry_msgs sensor_msgs)
 
-target_include_directories(instructions_node PUBLIC
+target_include_directories(controller_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_compile_features(instructions_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(controller_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
-install(TARGETS instructions_node
+install(TARGETS controller_node
   DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
+)
+
+install(DIRECTORY urdf/
+  DESTINATION share/${PROJECT_NAME}/urdf
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

@@ -4,7 +4,7 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "~/Arduino/libraries/**",
+                "~/Arduino/libraries/micro_ros_arduino/**",
                 "/home/jan/.arduino15/packages//OpenCR/**"
             ],
             "defines": [],
