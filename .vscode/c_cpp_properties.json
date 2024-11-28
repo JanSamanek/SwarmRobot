@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "~/Arduino/libraries/micro_ros_arduino/**",
-                "/home/jan/.arduino15/packages//OpenCR/**"
+                "/home/jan/.arduino15/packages/OpenCR/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
