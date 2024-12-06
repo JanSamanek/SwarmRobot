@@ -27,16 +27,20 @@ float PINGSensor::getMeasurement() const
     return distance;
 }
 
+extern "C" int clock_gettime(clockid_t unused, struct timespec *tp);
+
 sensor_msgs__msg__Range generateMeasurementMessage(const PINGSensor &ultraSonicSensor)
 {
+    struct timespec tv = {0};
+    clock_gettime(0, &tv);
+
     float distance = ultraSonicSensor.getMeasurement();
-    int64_t epoch_time_ns = rmw_uros_epoch_nanos();
 
     sensor_msgs__msg__Range msg;
 
-    msg.header.frame_id = micro_ros_string_utilities_set(msg.header.frame_id, ultraSonicSensor.configuration.referenceFrameId.c_str());
-    msg.header.stamp.sec = epoch_time_ns / 1000000000;
-    msg.header.stamp.nanosec = epoch_time_ns % 1000000000;
+    msg.header.frame_id = micro_ros_string_utilities_set(msg.header.frame_id, ultraSonicSensor.configuration.referenceFrameId);
+    msg.header.stamp.sec = tv.tv_sec;
+    msg.header.stamp.nanosec = tv.tv_nsec;
     msg.radiation_type = sensor_msgs__msg__Range__ULTRASOUND;
     msg.field_of_view = ultraSonicSensor.configuration.fieldOfView * (M_PI / 180);
     msg.min_range = ultraSonicSensor.configuration.minimumRange;

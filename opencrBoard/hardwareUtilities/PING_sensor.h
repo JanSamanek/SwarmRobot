@@ -12,7 +12,7 @@
     float minimumRange;
     float maximumRange;
     double fieldOfView;
-    std::string referenceFrameId;
+    const char* referenceFrameId;
  };
 
 

@@ -19,7 +19,9 @@
 
 #include "error_check.h"
 
-rcl_publisher_t publisher;
+rcl_publisher_t frontSensorPublisher;
+rcl_publisher_t backSensorPublisher;
+
 rcl_subscription_t instructionsSubscriber;
 geometry_msgs__msg__Twist instructionMsg;
 
@@ -49,10 +51,21 @@ PINGSensorConfiguration frontSensorConfig =
   .minimumRange = 0.03f,
   .maximumRange = 4.0f,
   .fieldOfView = 15,
-  .referenceFrameId = "PING_sensor_front_link"
+  .referenceFrameId = "sensor_front"
 };
 
 PINGSensor ultraSonicSensorFront(frontSensorConfig);
+
+PINGSensorConfiguration backSensorConfig = 
+{
+  .pingPin = 8,
+  .minimumRange = 0.03f,
+  .maximumRange = 4.0f,
+  .fieldOfView = 15,
+  .referenceFrameId = "sensor_back"
+};
+
+PINGSensor ultraSonicSensorBack(backSensorConfig);
 
 void incomming_instructions_callback(const void *msgin)
 {
@@ -83,10 +96,16 @@ void setup()
     "instructions"));
 
   RCCHECK(rclc_publisher_init_default(
-    &publisher,
+    &frontSensorPublisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range),
    "ping/front/measurement"));
+
+  RCCHECK(rclc_publisher_init_default(
+    &backSensorPublisher,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range),
+   "ping/back/measurement"));
 
   RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
   
@@ -133,8 +152,11 @@ void loop()
 
   RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1)));
 
-  sensor_msgs__msg__Range msg = generateMeasurementMessage(ultraSonicSensorFront);
-  RCSOFTCHECK(rcl_publish(&publisher, &msg, NULL));
+  sensor_msgs__msg__Range frontSensorMsg = generateMeasurementMessage(ultraSonicSensorFront);
+  RCSOFTCHECK(rcl_publish(&frontSensorPublisher, &frontSensorMsg, NULL));
+
+  sensor_msgs__msg__Range backSensorMsg = generateMeasurementMessage(ultraSonicSensorBack);
+  RCSOFTCHECK(rcl_publish(&backSensorPublisher, &backSensorMsg, NULL));
 
   Command command;
   BufferStatus status = buffer.pop(command);
