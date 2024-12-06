@@ -17,9 +17,14 @@
 #include <geometry_msgs/msg/twist.h>
 #include <sensor_msgs/msg/range.h>
 
+#include <micro_ros_utilities/type_utilities.h>
+#include <micro_ros_utilities/string_utilities.h>
+
 #include "error_check.h"
 
-rcl_publisher_t publisher;
+rcl_publisher_t frontSensorPublisher;
+sensor_msgs__msg__Range * frontSensorMsg;
+
 rcl_subscription_t instructionsSubscriber;
 geometry_msgs__msg__Twist instructionMsg;
 
@@ -28,18 +33,9 @@ rcl_allocator_t allocator;
 rclc_support_t support;
 rcl_node_t node;
 
-CircularBuffer buffer(2048);
-CommandFactory factory;
-
 #define BOOT_TIMEOUT 5000
 
-#define PERIOD_1000_MS 1000
-#define PERIOD_100_MS 100
-#define PERIOD_10_MS 10
-
-uint32_t previousMillis10ms = 0;
-uint32_t previousMillis100ms = 0;
-uint32_t previousMillis1000ms = 0;
+extern "C" int clock_gettime(clockid_t unused, struct timespec *tp);
 
 Instructions instructions = {1024, 1024, 1024, 0, 0};
 
@@ -51,7 +47,6 @@ PINGSensorConfiguration frontSensorConfig =
   .fieldOfView = 15,
   .referenceFrameId = "PING_sensor_front_link"
 };
-
 PINGSensor ultraSonicSensorFront(frontSensorConfig);
 
 void incomming_instructions_callback(const void *msgin)
@@ -74,7 +69,7 @@ void setup()
   
   allocator = rcl_get_default_allocator();
   RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
-  RCCHECK(rclc_node_init_default(&node, "main_node", "", &support));
+  RCCHECK(rclc_node_init_default(&node, "micro_ros_arduino_node", "", &support));
 
   RCCHECK(rclc_subscription_init_default(
     &instructionsSubscriber,
@@ -83,63 +78,42 @@ void setup()
     "instructions"));
 
   RCCHECK(rclc_publisher_init_default(
-    &publisher,
+    &frontSensorPublisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range),
-   "ping/front/measurement"));
+   "/ping/front/measurement"));
 
   RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
   
   RCCHECK(rclc_executor_add_subscription(&executor, &instructionsSubscriber, &instructionMsg, &incomming_instructions_callback, ON_NEW_DATA));
 
-  buffer.push(factory.buildCommand(INIT_FREE_MODE_COMMAND));
-  buffer.push(factory.buildCommand(INIT_CHASSIS_ACCELERATION_COMMAND));
-  buffer.push(factory.buildCommand(INIT_COMMAND_1));
-  buffer.push(factory.buildCommand(INIT_COMMAND_2));
-  buffer.push(factory.buildCommand(INIT_COMMAND_3));
-  buffer.push(factory.buildCommand(INIT_COMMAND_4));
-  buffer.push(factory.buildCommand(INIT_COMMAND_5));
+  if(!micro_ros_utilities_create_message_memory(
+      ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range),
+      &frontSensorMsg,
+      (micro_ros_utilities_memory_conf_t) {})
+    )
+  {
+    error_loop();
+  }
+
+  frontSensorMsg->header.frame_id = micro_ros_string_utilities_set(frontSensorMsg->header.frame_id, "PING_sensor_front_link");
+  frontSensorMsg->radiation_type = sensor_msgs__msg__Range__ULTRASOUND;
+  frontSensorMsg->field_of_view = 15* (M_PI / 180);
+  frontSensorMsg->min_range = 0.03f;
+  frontSensorMsg->max_range = 4.0f;
   
 }
 
 void loop() 
 {
-  uint32_t currentMillis = millis();
+  struct timespec tv = {0};
+  clock_gettime(0, &tv);
 
-  if (currentMillis - previousMillis10ms >= PERIOD_10_MS) 
-  {
-    previousMillis10ms = currentMillis;
-    
-    buffer.push(factory.buildCommand(MOVE_COMMAND, instructions));
-    buffer.push(factory.buildCommand(GIMBALL_COMMAND, instructions));
-  }
-
-  if (currentMillis - previousMillis100ms >= PERIOD_100_MS) 
-  {
-    previousMillis100ms = currentMillis;
-     
-    buffer.push(factory.buildCommand(COMMAND_1));
-    buffer.push(factory.buildCommand(COMMAND_2));
-    buffer.push(factory.buildCommand(COMMAND_3));
-  }
-
-  if (currentMillis - previousMillis1000ms >= PERIOD_1000_MS) 
-  {
-    previousMillis1000ms = currentMillis;
-    
-    buffer.push(factory.buildCommand(COMMAND_4));
-    buffer.push(factory.buildCommand(COMMAND_5));
-  }
-
-  RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1)));
-
-  sensor_msgs__msg__Range msg = generateMeasurementMessage(ultraSonicSensorFront);
-  RCSOFTCHECK(rcl_publish(&publisher, &msg, NULL));
-
-  Command command;
-  BufferStatus status = buffer.pop(command);
-  if (status == BUFFER_EMPTY)
-      return;
+  float distance = ultraSonicSensorFront.getMeasurement();
+  frontSensorMsg->header.stamp.sec = tv.tv_sec;
+  frontSensorMsg->header.stamp.nanosec = tv.tv_nsec;
+  frontSensorMsg->range = distance;
+  RCSOFTCHECK(rcl_publish(&frontSensorPublisher, frontSensorMsg, NULL));
   
-  sendCommand(command);
+  RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100)));
 }
