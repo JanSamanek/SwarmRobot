@@ -2,7 +2,6 @@
 #include "buffer.h"
 #include "instructions.h"
 #include "command_factory.h"
-#include "PING_sensor.h"
 
 #include <CAN.h>
 
@@ -15,11 +14,9 @@
 #include <rclc/executor.h>
 
 #include <geometry_msgs/msg/twist.h>
-#include <sensor_msgs/msg/range.h>
 
 #include "error_check.h"
 
-rcl_publisher_t publisher;
 rcl_subscription_t instructionsSubscriber;
 geometry_msgs__msg__Twist instructionMsg;
 
@@ -43,17 +40,6 @@ uint32_t previousMillis1000ms = 0;
 
 Instructions instructions = {1024, 1024, 1024, 0, 0};
 
-PINGSensorConfiguration frontSensorConfig = 
-{
-  .pingPin = 7,
-  .minimumRange = 0.03f,
-  .maximumRange = 4.0f,
-  .fieldOfView = 15,
-  .referenceFrameId = "PING_sensor_front_link"
-};
-
-PINGSensor ultraSonicSensorFront(frontSensorConfig);
-
 void incomming_instructions_callback(const void *msgin)
 {
   const geometry_msgs__msg__Twist * msg = (const geometry_msgs__msg__Twist *)msgin;
@@ -74,19 +60,13 @@ void setup()
   
   allocator = rcl_get_default_allocator();
   RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
-  RCCHECK(rclc_node_init_default(&node, "main_node", "", &support));
+  RCCHECK(rclc_node_init_default(&node, "microros_node", "", &support));
 
   RCCHECK(rclc_subscription_init_default(
     &instructionsSubscriber,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
     "instructions"));
-
-  RCCHECK(rclc_publisher_init_default(
-    &publisher,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range),
-   "ping/front/measurement"));
 
   RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
   
@@ -104,6 +84,8 @@ void setup()
 
 void loop() 
 {
+  RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1)));
+
   uint32_t currentMillis = millis();
 
   if (currentMillis - previousMillis10ms >= PERIOD_10_MS) 
@@ -130,11 +112,6 @@ void loop()
     buffer.push(factory.buildCommand(COMMAND_4));
     buffer.push(factory.buildCommand(COMMAND_5));
   }
-
-  RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1)));
-
-  sensor_msgs__msg__Range msg = generateMeasurementMessage(ultraSonicSensorFront);
-  RCSOFTCHECK(rcl_publish(&publisher, &msg, NULL));
 
   Command command;
   BufferStatus status = buffer.pop(command);

@@ -17,17 +17,17 @@ class ControllerNode : public rclcpp::Node
     : Node("controller_node")
     {
       m_publisher = this->create_publisher<geometry_msgs::msg::Twist>("instructions", 10);
-      m_subscription = this->create_subscription<sensor_msgs::msg::Range>(
-      "ping/front/measurement", 10, std::bind(&ControllerNode::front_ultrasonic_sensor_callabck, this, _1));
+      m_timer = this->create_wall_timer(
+      500ms, std::bind(&ControllerNode::timer_callback, this));
     }
 
   private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr m_publisher;
-    rclcpp::Subscription<sensor_msgs::msg::Range>::SharedPtr m_subscription;
+    rclcpp::TimerBase::SharedPtr m_timer;
 
-    void front_ultrasonic_sensor_callabck(const sensor_msgs::msg::Range & msg) const
+    void timer_callback()
     {
-      RCLCPP_INFO(this->get_logger(), "PING-FRONT distance: '%f'", msg.range);
+      RCLCPP_INFO(this->get_logger(), "Publishing instructions");
 
       auto message = geometry_msgs::msg::Twist();
       message.linear.x = 0;
