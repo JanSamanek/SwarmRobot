@@ -24,6 +24,5 @@ public:
     float getMeasurement() const;
 };
 
-sensor_msgs__msg__Range generateMeasurementMessage(const PINGSensor& ultraSonicSensor);
-
+void fillMeasurementMessage(const PINGSensor &ultraSonicSensor, sensor_msgs__msg__Range * msg);
 #endif

@@ -17,6 +17,9 @@
 #include <geometry_msgs/msg/twist.h>
 #include <sensor_msgs/msg/range.h>
 
+#include <micro_ros_utilities/type_utilities.h>
+#include <micro_ros_utilities/string_utilities.h>
+
 #include "error_check.h"
 
 rcl_publisher_t frontSensorPublisher;
@@ -67,6 +70,9 @@ PINGSensorConfiguration backSensorConfig =
 
 PINGSensor ultraSonicSensorBack(backSensorConfig);
 
+sensor_msgs__msg__Range frontSensorMsg;
+sensor_msgs__msg__Range backSensorMsg;
+
 void incomming_instructions_callback(const void *msgin)
 {
   const geometry_msgs__msg__Twist * msg = (const geometry_msgs__msg__Twist *)msgin;
@@ -82,7 +88,6 @@ void setup()
   
   delay(BOOT_TIMEOUT); 
 
-  Serial.begin(115200);
   CanBus.begin(CAN_BAUD_1000K, CAN_STD_FORMAT);
   
   allocator = rcl_get_default_allocator();
@@ -110,6 +115,36 @@ void setup()
   RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
   
   RCCHECK(rclc_executor_add_subscription(&executor, &instructionsSubscriber, &instructionMsg, &incomming_instructions_callback, ON_NEW_DATA));
+
+  if(!micro_ros_utilities_create_message_memory(
+      ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range),
+      &frontSensorMsg,
+      (micro_ros_utilities_memory_conf_t) {})
+    )
+  {
+    error_loop();
+  }
+
+  frontSensorMsg.header.frame_id = micro_ros_string_utilities_set(frontSensorMsg.header.frame_id, ultraSonicSensorFront.configuration.referenceFrameId);
+  frontSensorMsg.radiation_type = sensor_msgs__msg__Range__ULTRASOUND;
+  frontSensorMsg.field_of_view = ultraSonicSensorFront.configuration.fieldOfView * (M_PI / 180);
+  frontSensorMsg.min_range = ultraSonicSensorFront.configuration.minimumRange;
+  frontSensorMsg.max_range = ultraSonicSensorFront.configuration.maximumRange;
+
+  if(!micro_ros_utilities_create_message_memory(
+      ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range),
+      &backSensorMsg,
+      (micro_ros_utilities_memory_conf_t) {})
+    )
+  {
+    error_loop();
+  }
+
+  backSensorMsg.header.frame_id = micro_ros_string_utilities_set(backSensorMsg.header.frame_id, ultraSonicSensorBack.configuration.referenceFrameId);
+  backSensorMsg.radiation_type = sensor_msgs__msg__Range__ULTRASOUND;
+  backSensorMsg.field_of_view = ultraSonicSensorBack.configuration.fieldOfView * (M_PI / 180);
+  backSensorMsg.min_range = ultraSonicSensorBack.configuration.minimumRange;
+  backSensorMsg.max_range = ultraSonicSensorBack.configuration.maximumRange;
 
   buffer.push(factory.buildCommand(INIT_FREE_MODE_COMMAND));
   buffer.push(factory.buildCommand(INIT_CHASSIS_ACCELERATION_COMMAND));
@@ -152,10 +187,10 @@ void loop()
 
   RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1)));
 
-  sensor_msgs__msg__Range frontSensorMsg = generateMeasurementMessage(ultraSonicSensorFront);
+  fillMeasurementMessage(ultraSonicSensorFront, &frontSensorMsg);
   RCSOFTCHECK(rcl_publish(&frontSensorPublisher, &frontSensorMsg, NULL));
 
-  sensor_msgs__msg__Range backSensorMsg = generateMeasurementMessage(ultraSonicSensorBack);
+  fillMeasurementMessage(ultraSonicSensorBack, &backSensorMsg);
   RCSOFTCHECK(rcl_publish(&backSensorPublisher, &backSensorMsg, NULL));
 
   Command command;
